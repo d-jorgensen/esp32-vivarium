@@ -4,7 +4,7 @@ Items used in this project
   3. two max6675 sensors with k-type probes, one using hardware spi and the other on software
   4. i2c with 20x4 display
   5. 60W 12v DC power supply
-  6. 5v DC buck converter
+  6. lm2596 buck converter set to 5V DC
   7. 2x 12v DC USB buck converters
   8. 12v DC pump
   9. 2x USB fan
