@@ -12,7 +12,8 @@ esp32:
 # Enable logging
 logger:
 
-# ESP home wifi - fallback wifi section removed
+# Enable Home Assistant API
+# wifi info removed
 
 captive_portal:
 
@@ -109,9 +110,9 @@ climate:
     default_target_temperature: 33°C
     heat_output: relay3pwm
     control_parameters:
-      kp: 1.0
-      ki: 3.0
-      kd: 0.2
+      kp: 0.6
+      ki: 0.0004
+      kd: 220
       output_averaging_samples: 5      # smooth the output over 5 samples
       derivative_averaging_samples: 5  # smooth the derivative value over 10 samples
     deadband_parameters:
@@ -128,7 +129,7 @@ climate:
     default_target_temperature: 33°C
     heat_output: relay2pwm
     control_parameters:
-      kp: 1.0
+      kp: 1.0   #basic Zeigler-Nichols tuning values 
       ki: 3.0
       kd: 0.2
       output_averaging_samples: 5      # smooth the output over 5 samples
@@ -150,12 +151,6 @@ output:
     pin: GPIO14
     id: relay2pwm
     period: 60s
-
-button:
-  - platform: template
-    name: "PID Climate Autotune"
-    on_press:
-      - climate.pid.autotune: climate1
 
 i2c:
   sda: GPIO21
