@@ -110,7 +110,7 @@ climate:
     default_target_temperature: 33°C
     heat_output: relay3pwm
     control_parameters:
-      kp: 0.6
+      kp: 0.6  #basic Zeigler-Nichols tuning values 
       ki: 0.0004
       kd: 220
       output_averaging_samples: 5      # smooth the output over 5 samples
@@ -129,9 +129,9 @@ climate:
     default_target_temperature: 33°C
     heat_output: relay2pwm
     control_parameters:
-      kp: 1.0   #basic Zeigler-Nichols tuning values 
-      ki: 3.0
-      kd: 0.2
+      kp: 0.6  #basic Zeigler-Nichols tuning values 
+      ki: 0.0004
+      kd: 220
       output_averaging_samples: 5      # smooth the output over 5 samples
       derivative_averaging_samples: 5  # smooth the derivative value over 10 samples
     deadband_parameters:
