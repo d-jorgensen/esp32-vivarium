@@ -1,0 +1,175 @@
+esphome:
+  name: snaketesting
+  friendly_name: snaketesting
+  comment: "Automated environmenal control for snake housing"
+  area: "Living Room"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# ESP home wifi - fallback wifi section removed
+
+captive_portal:
+
+web_server:
+  port: 80
+  version: 3
+  ota: false
+
+switch:
+  - platform: gpio
+    pin: GPIO13
+    inverted: true
+    id: relay4
+    name: "Pump"
+    icon: "mdi:water-pump"
+    on_turn_on:
+    - delay: 5000ms
+    - switch.turn_off: relay4
+    
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: America/Edmonton
+    on_time:
+    - cron: '0 5 10 * * *'
+      then:
+        - switch.toggle: relay4  
+    - cron: '0 0 8 * * *'
+      then:
+        - climate.control: 
+            id: climate1
+            mode: HEAT
+            target_temperature: 33°C
+    - cron: '0 0 22 * * *'
+      then:
+        - climate.control:
+            id: climate1
+            mode: HEAT
+            target_temperature: 28°C
+
+spi:
+  - id: spi_bus0
+    clk_pin: GPIO5
+    miso_pin: GPIO19
+    interface: hardware
+  - id: spi_bus1
+    clk_pin: GPIO26
+    miso_pin: GPIO33
+    interface: software
+
+sensor:
+  - platform: max6675
+    spi_id: spi_bus0
+    id: snaketemp1
+    name: "Snake Temperature"
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer"
+    device_class: "temperature"
+    state_class: "measurement"
+    cs_pin: GPIO23
+    update_interval: 10s
+    filters: 
+      - clamp: 
+          min_value: 12
+          max_value: 60
+      - median:
+          window_size: 5
+          send_every: 5
+          send_first_at: 1
+  - platform: max6675
+    spi_id: spi_bus1
+    id: snaketemp2
+    name: "Snake Temperature 2"
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer"
+    device_class: "temperature"
+    state_class: "measurement"
+    cs_pin: GPIO25
+    update_interval: 10s
+    filters: 
+      - clamp: 
+          min_value: 12
+          max_value: 60
+      - median:
+          window_size: 5
+          send_every: 5
+          send_first_at: 1
+
+climate:
+  - platform: pid
+    id: climate1
+    name: "PID Climate Controller 1"
+    sensor: snaketemp1
+    default_target_temperature: 33°C
+    heat_output: relay3pwm
+    control_parameters:
+      kp: 1.0
+      ki: 3.0
+      kd: 0.2
+      output_averaging_samples: 5      # smooth the output over 5 samples
+      derivative_averaging_samples: 5  # smooth the derivative value over 10 samples
+    deadband_parameters:
+      threshold_high: 1.5°C       
+      threshold_low: -1.5°C
+    visual:
+      min_temperature: 18
+      max_temperature: 40
+      temperature_step: 0.1
+  - platform: pid
+    id: climate2
+    name: "PID Climate Controller 2"
+    sensor: snaketemp1
+    default_target_temperature: 33°C
+    heat_output: relay2pwm
+    control_parameters:
+      kp: 1.0
+      ki: 3.0
+      kd: 0.2
+      output_averaging_samples: 5      # smooth the output over 5 samples
+      derivative_averaging_samples: 5  # smooth the derivative value over 10 samples
+    deadband_parameters:
+      threshold_high: 1.5°C       
+      threshold_low: -1.5°C
+    visual:
+      min_temperature: 18
+      max_temperature: 40
+      temperature_step: 0.1
+
+output:
+  - platform: slow_pwm
+    pin: GPIO12
+    id: relay3pwm
+    period: 60s
+  - platform: slow_pwm
+    pin: GPIO14
+    id: relay2pwm
+    period: 60s
+
+button:
+  - platform: template
+    name: "PID Climate Autotune"
+    on_press:
+      - climate.pid.autotune: climate1
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+  frequency: 10kHz
+
+display: 
+  - platform: lcd_pcf8574
+    dimensions: 20x4
+    address: 0x27
+    update_interval: 10s
+    lambda: |-
+      const unsigned char deg_sign[] = {0xDF, 0};
+      it.strftime(0, 0, "%H:%M - %d.%b.%Y", id(sntp_time).now());
+      it.printf(0, 2, "Snaketemp: %5.1f%sC", id(snaketemp1).state, deg_sign);
+      it.printf(0, 3, "Snaketemp2: %4.1f%sC", id(snaketemp2).state, deg_sign);
