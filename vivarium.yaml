@@ -57,10 +57,18 @@ time:
             id: climate1
             mode: HEAT
             target_temperature: 32°C
+        - climate.control: 
+            id: climate2
+            mode: HEAT
+            target_temperature: 35°C
     - cron: '0 0 22 * * *'
       then:
         - climate.control:
             id: climate1
+            mode: HEAT
+            target_temperature: 24°C
+        - climate.control: 
+            id: climate2
             mode: HEAT
             target_temperature: 24°C
 
@@ -84,13 +92,13 @@ sensor:
     device_class: "temperature"
     state_class: "measurement"
     cs_pin: GPIO23
-    update_interval: 10s
+    update_interval: 6s
     filters: 
       - clamp: 
           min_value: 12
           max_value: 60
-      - median:
-          window_size: 5
+      - exponential_moving_average:
+          alpha: 0.5
           send_every: 5
           send_first_at: 1
   - platform: max6675
@@ -102,13 +110,13 @@ sensor:
     device_class: "temperature"
     state_class: "measurement"
     cs_pin: GPIO25
-    update_interval: 10s
+    update_interval: 6s
     filters: 
       - clamp: 
           min_value: 12
           max_value: 60
-      - median:
-          window_size: 5
+      - exponential_moving_average:
+          alpha: 0.5
           send_every: 5
           send_first_at: 1
 
@@ -120,8 +128,8 @@ climate:
     default_target_temperature: 32°C
     heat_output: relay3pwm
     control_parameters:
-      kp: 6.0 #0.6  #basic zeigler-nichols tuning  values
-      ki: 0.6 #0.027
+      kp: 5.0 #0.6  #basic zeigler-nichols tuning  values
+      ki: 3.0 #0.027
       kd: 3.0 #3.375
       output_averaging_samples: 5      # smooth the output over 5 samples
       derivative_averaging_samples: 5  # smooth the derivative value over 10 samples
@@ -138,31 +146,37 @@ climate:
     id: climate2
     name: "PID Climate Controller 2"
     sensor: snaketemp2
-    default_target_temperature: 28°C
+    default_target_temperature: 35°C
     heat_output: relay2pwm
     control_parameters:
-      kp: 0.6  #basic zeigler-nichols tuning  values
-      ki: 0.0004
-      kd: 220
+      kp: 5.0  #basic zeigler-nichols tuning  values
+      ki: 3.0
+      kd: 3.0
       output_averaging_samples: 5      # smooth the output over 5 samples
       derivative_averaging_samples: 5  # smooth the derivative value over 10 samples
     deadband_parameters:
-      threshold_high: 1.5°C       
-      threshold_low: -1.5°C
+      threshold_high: 0.5°C       
+      threshold_low: -0.5°C
+      kp_multiplier: 1
+      ki_multiplier: 0.1 
     visual:
       min_temperature: 18
       max_temperature: 40
       temperature_step: 0.1
 
 output:
-  - platform: slow_pwm
-    pin: GPIO12
+  #- platform: slow_pwm
+  #  pin: GPIO12
+  #  id: relay3pwm
+  #  period: 30s
+  - platform: sigma_delta_output
+    update_interval: 10s
     id: relay3pwm
-    period: 60s
-  - platform: slow_pwm
+    pin: GPIO12
+  - platform: sigma_delta_output
     pin: GPIO14
     id: relay2pwm
-    period: 60s
+    update_interval: 10s
 
 i2c:
   sda: GPIO21
@@ -178,5 +192,5 @@ display:
     lambda: |-
       const unsigned char deg_sign[] = {0xDF, 0};
       it.strftime(0, 0, "%H:%M - %d.%b.%Y", id(sntp_time).now());
-      it.printf(0, 2, "Snaketemp: %5.1f%sC", id(snaketemp1).state, deg_sign);
-      it.printf(0, 3, "Snaketemp2: %4.1f%sC", id(snaketemp2).state, deg_sign);
+      it.printf(0, 2, "1: %.1f%sC (%.1F%sC)", id(snaketemp1).state, deg_sign, id(climate1).target_temperature, deg_sign);
+      it.printf(0, 3, "2: %.1f%sC (%.1F%sC)", id(snaketemp2).state, deg_sign, id(climate2).target_temperature, deg_sign);
