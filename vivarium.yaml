@@ -1,3 +1,13 @@
+globals:
+  - id: tempstate1
+    type: float
+    restore_value: no
+    initial_value: '0'
+  - id: tempstate2
+    type: float
+    restore_value: no
+    initial_value: '0'
+
 esphome:
   name: vivarium
   friendly_name: vivarium
@@ -42,6 +52,14 @@ switch:
     on_turn_on:
     - delay: 5000ms
     - switch.turn_off: relay4
+  - platform: output
+    name: "Heat 1 switch"
+    output: 'relay3pwm'
+  - platform: output
+    name: "Heat 2 switch"
+    output: 'relay2pwm'
+
+
     
 time:
   - platform: sntp
@@ -149,14 +167,14 @@ climate:
     default_target_temperature: 35°C
     heat_output: relay2pwm
     control_parameters:
-      kp: 5.0  #basic zeigler-nichols tuning  values
+      kp: 8.0  #basic zeigler-nichols tuning  values
       ki: 3.0
-      kd: 3.0
+      kd: 8.0
       output_averaging_samples: 5      # smooth the output over 5 samples
       derivative_averaging_samples: 5  # smooth the derivative value over 10 samples
     deadband_parameters:
       threshold_high: 0.5°C       
-      threshold_low: -0.5°C
+      threshold_low: -1.5°C
       kp_multiplier: 1
       ki_multiplier: 0.1 
     visual:
@@ -173,10 +191,14 @@ output:
     update_interval: 10s
     id: relay3pwm
     pin: GPIO12
+    min_power: 0.01
+    max_power: 1.00
   - platform: sigma_delta_output
     pin: GPIO14
     id: relay2pwm
     update_interval: 10s
+    min_power: 0.01
+    max_power: 0.70
 
 i2c:
   sda: GPIO21
@@ -188,9 +210,39 @@ display:
   - platform: lcd_pcf8574
     dimensions: 20x4
     address: 0x27
+    user_characters:
+      - position: 0
+        data: 
+          - 0b00100
+          - 0b01110
+          - 0b11111
+          - 0b00100
+          - 0b00100
+          - 0b00100
+          - 0b00100
+          - 0b00100
+      - position: 1
+        data: 
+          - 0b00100
+          - 0b00100
+          - 0b00100
+          - 0b00100
+          - 0b00100
+          - 0b11111
+          - 0b01110
+          - 0b00100
     update_interval: 10s
     lambda: |-
       const unsigned char deg_sign[] = {0xDF, 0};
+
       it.strftime(0, 0, "%H:%M - %d.%b.%Y", id(sntp_time).now());
-      it.printf(0, 2, "1: %.1f%sC (%.1F%sC)", id(snaketemp1).state, deg_sign, id(climate1).target_temperature, deg_sign);
-      it.printf(0, 3, "2: %.1f%sC (%.1F%sC)", id(snaketemp2).state, deg_sign, id(climate2).target_temperature, deg_sign);
+      if (id(snaketemp1).state < id(tempstate1)) {
+        it.printf(0, 2, "1: %.1f%sC (%.1F%sC) \x08", id(snaketemp1).state, deg_sign, id(climate1).target_temperature, deg_sign);
+      } else {
+        it.printf(0, 2, "1: %.1f%sC (%.1F%sC) \x01", id(snaketemp1).state, deg_sign, id(climate1).target_temperature, deg_sign);}
+      if (id(snaketemp2).state < id(tempstate2)) {
+        it.printf(0, 3, "2: %.1f%sC (%.1F%sC) \x08", id(snaketemp2).state, deg_sign, id(climate2).target_temperature, deg_sign);
+      } else {
+        it.printf(0, 3, "2: %.1f%sC (%.1F%sC) \x01", id(snaketemp2).state, deg_sign, id(climate2).target_temperature, deg_sign);}
+      id(tempstate1) = id(snaketemp1).state;
+      id(tempstate2) = id(snaketemp2).state;
